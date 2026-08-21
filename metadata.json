@@ -1,0 +1,6 @@
+{
+  "name": "AI SMS Ledger",
+  "description": "Smart SMS transaction parser that automatically extracts names, amounts, transaction numbers, dates, and times from incoming messages and syncs them to user-provided databases like Firebase, Neon, Supabase, and REST APIs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
