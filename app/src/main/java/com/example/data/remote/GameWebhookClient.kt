@@ -126,6 +126,16 @@ object GameWebhookClient {
                     )
                 }
                 val responseJson = runCatching { JSONObject(responseText) }.getOrNull()
+                if (responseJson?.optString("status") != "success") {
+                    return@withContext Result.failure(
+                        IllegalStateException("Game webhook returned an unexpected response")
+                    )
+                }
+                if (isTest && !responseJson.optBoolean("ignored", false)) {
+                    return@withContext Result.failure(
+                        IllegalStateException("Game did not confirm that the test event was ignored")
+                    )
+                }
                 if (!isTest && responseJson?.optBoolean("ignored", false) == true) {
                     return@withContext Result.failure(
                         IllegalStateException("Game rejected this event; check its transaction fields")
