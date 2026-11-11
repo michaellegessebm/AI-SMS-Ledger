@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.migration.Migration
 import com.example.data.dao.RemoteDatabaseConfigDao
 import com.example.data.dao.SenderFilterDao
 import com.example.data.dao.TransactionDao
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
         SenderFilterEntity::class,
         RemoteDatabaseConfigEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +31,17 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun remoteDatabaseConfigDao(): RemoteDatabaseConfigDao
 
     companion object {
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE remote_database_config ADD COLUMN gameWebhookUrl TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE remote_database_config ADD COLUMN gameWebhookToken TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE remote_database_config ADD COLUMN isGameWebhookEnabled INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN gameWebhookStatus TEXT NOT NULL DEFAULT 'NOT_APPLICABLE'")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN gameWebhookError TEXT")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN gameWebhookTime INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -40,6 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "sms_ledger_database"
                 )
+                .addMigrations(MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .addCallback(DatabaseCallback(scope))
                 .build()

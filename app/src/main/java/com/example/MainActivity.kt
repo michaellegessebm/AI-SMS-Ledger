@@ -76,6 +76,8 @@ fun MainAppContent(viewModel: MainViewModel) {
     val isTestingConnection by viewModel.isTestingConnection.collectAsStateWithLifecycle()
     val isSyncingToCloud by viewModel.isSyncingToCloud.collectAsStateWithLifecycle()
     val connectionTestResult by viewModel.connectionTestResult.collectAsStateWithLifecycle()
+    val isTestingGameWebhook by viewModel.isTestingGameWebhook.collectAsStateWithLifecycle()
+    val gameWebhookTestResult by viewModel.gameWebhookTestResult.collectAsStateWithLifecycle()
     val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
     val inboxMessages by viewModel.inboxMessages.collectAsStateWithLifecycle()
     val isLoadingInbox by viewModel.isLoadingInbox.collectAsStateWithLifecycle()
@@ -199,6 +201,8 @@ fun MainAppContent(viewModel: MainViewModel) {
                             isTestingConnection = isTestingConnection,
                             isSyncingToCloud = isSyncingToCloud,
                             testResult = connectionTestResult,
+                            isTestingGameWebhook = isTestingGameWebhook,
+                            gameWebhookTestResult = gameWebhookTestResult,
                             onSaveConfig = { type, url, apiKey, path, isAutoSync ->
                                 viewModel.saveRemoteConfig(type, url, apiKey, path, isAutoSync)
                             },
@@ -207,6 +211,15 @@ fun MainAppContent(viewModel: MainViewModel) {
                             },
                             onSyncAll = {
                                 viewModel.syncAllTransactionsToRemote()
+                            },
+                            onSaveGameWebhook = { enabled, url, token ->
+                                viewModel.saveGameWebhookConfig(enabled, url, token)
+                            },
+                            onTestGameWebhook = { url, token ->
+                                viewModel.testGameWebhook(url, token)
+                            },
+                            onRetryGameWebhooks = {
+                                viewModel.retryPendingGameWebhooks()
                             }
                         )
                     }

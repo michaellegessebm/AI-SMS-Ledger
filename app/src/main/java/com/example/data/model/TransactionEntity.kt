@@ -1,6 +1,7 @@
 package com.example.data.model
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "transactions")
@@ -21,5 +22,10 @@ data class TransactionEntity(
     val remoteSyncStatus: String = "PENDING", // PENDING, SYNCED, FAILED, LOCAL_ONLY
     val remoteSyncError: String? = null,
     val remoteSyncTime: Long = 0L,
+    @ColumnInfo(defaultValue = "'NOT_APPLICABLE'")
+    val gameWebhookStatus: String = "NOT_APPLICABLE", // PENDING, DELIVERED, FAILED, NOT_APPLICABLE
+    val gameWebhookError: String? = null,
+    @ColumnInfo(defaultValue = "0")
+    val gameWebhookTime: Long = 0L,
     val createdAt: Long = System.currentTimeMillis()
 )

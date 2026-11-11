@@ -6,6 +6,7 @@ import com.example.data.dao.TransactionDao
 import com.example.data.model.RemoteDatabaseConfigEntity
 import com.example.data.model.SenderFilterEntity
 import com.example.data.model.TransactionEntity
+import com.example.data.remote.GameWebhookClient
 import com.example.data.remote.RemoteDatabaseSyncManager
 import kotlinx.coroutines.flow.Flow
 
@@ -115,6 +116,9 @@ class TransactionRepository(
         if (result.isSuccess) {
             transactionDao.updateSyncStatus(transaction.id, "SYNCED", null, System.currentTimeMillis())
             remoteDatabaseConfigDao.updateSyncStatus("SYNCED", System.currentTimeMillis(), null)
+            if (config.isGameWebhookEnabled && GameWebhookClient.isEligiblePayment(transaction)) {
+                deliverGameWebhook(transaction, config)
+            }
         } else {
             val errorMsg = result.exceptionOrNull()?.message
             transactionDao.updateSyncStatus(transaction.id, "FAILED", errorMsg, System.currentTimeMillis())
@@ -141,6 +145,9 @@ class TransactionRepository(
             val syncResult = RemoteDatabaseSyncManager.syncTransaction(txn, config)
             if (syncResult.isSuccess) {
                 transactionDao.updateSyncStatus(txn.id, "SYNCED", null, System.currentTimeMillis())
+                if (config.isGameWebhookEnabled && GameWebhookClient.isEligiblePayment(txn)) {
+                    deliverGameWebhook(txn, config)
+                }
                 successCount++
             } else {
                 transactionDao.updateSyncStatus(txn.id, "FAILED", syncResult.exceptionOrNull()?.message, System.currentTimeMillis())
@@ -154,5 +161,35 @@ class TransactionRepository(
         )
 
         return Result.success(successCount)
+    }
+
+    suspend fun retryPendingGameWebhooks(): Result<Int> {
+        val config = remoteDatabaseConfigDao.getConfigDirect()
+            ?: return Result.failure(Exception("Remote database configuration not found"))
+        if (!config.isGameWebhookEnabled || config.gameWebhookUrl.isBlank() || config.gameWebhookToken.isBlank()) {
+            return Result.failure(Exception("Save and enable the game webhook first"))
+        }
+
+        val pending = transactionDao.getPendingGameWebhookTransactions()
+        var successCount = 0
+        for (transaction in pending) {
+            if (deliverGameWebhook(transaction, config)) successCount++
+        }
+        return Result.success(successCount)
+    }
+
+    private suspend fun deliverGameWebhook(
+        transaction: TransactionEntity,
+        config: RemoteDatabaseConfigEntity
+    ): Boolean {
+        val result = GameWebhookClient.sendVerifiedPayment(transaction, config)
+        val status = if (result.isSuccess) "DELIVERED" else "FAILED"
+        transactionDao.updateGameWebhookStatus(
+            transaction.id,
+            status,
+            result.exceptionOrNull()?.message,
+            System.currentTimeMillis()
+        )
+        return result.isSuccess
     }
 }

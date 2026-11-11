@@ -8,6 +8,7 @@ import android.util.Log
 import com.example.ai.GeminiSmsParser
 import com.example.data.db.AppDatabase
 import com.example.data.model.TransactionEntity
+import com.example.data.remote.GameWebhookClient
 import com.example.data.remote.RemoteDatabaseSyncManager
 import com.example.util.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
@@ -101,9 +102,12 @@ class SmsReceiver : BroadcastReceiver() {
             remoteSyncStatus = "PENDING",
             createdAt = System.currentTimeMillis()
         )
+        val transactionForSave = transactionEntity.copy(
+            gameWebhookStatus = if (GameWebhookClient.isEligiblePayment(transactionEntity)) "PENDING" else "NOT_APPLICABLE"
+        )
 
-        val id = transactionDao.insertTransaction(transactionEntity)
-        var savedEntity = transactionEntity.copy(id = id)
+        val id = transactionDao.insertTransaction(transactionForSave)
+        var savedEntity = transactionForSave.copy(id = id)
 
         Log.d(TAG, "Saved AI extracted transaction #$id to local database: ${savedEntity.merchantOrName} - ${savedEntity.amount}")
 
@@ -132,6 +136,26 @@ class SmsReceiver : BroadcastReceiver() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Remote sync error in receiver: ${e.message}", e)
+        }
+
+        val gameConfig = remoteConfigDao.getConfigDirect()
+        if (savedEntity.gameWebhookStatus == "PENDING"
+            && savedEntity.remoteSyncStatus == "SYNCED"
+            && gameConfig?.isGameWebhookEnabled == true
+        ) {
+            val delivery = GameWebhookClient.sendVerifiedPayment(savedEntity, gameConfig)
+            val status = if (delivery.isSuccess) "DELIVERED" else "FAILED"
+            val error = delivery.exceptionOrNull()?.message
+            val deliveredAt = System.currentTimeMillis()
+            transactionDao.updateGameWebhookStatus(id, status, error, deliveredAt)
+            savedEntity = savedEntity.copy(
+                gameWebhookStatus = status,
+                gameWebhookError = error,
+                gameWebhookTime = deliveredAt
+            )
+            if (delivery.isFailure) {
+                Log.w(TAG, "Game webhook delivery failed for transaction #$id: $error")
+            }
         }
 
         NotificationHelper.showTransactionNotification(context, savedEntity)

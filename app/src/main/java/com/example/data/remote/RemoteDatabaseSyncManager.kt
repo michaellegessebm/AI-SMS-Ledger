@@ -109,10 +109,20 @@ object RemoteDatabaseSyncManager {
                     INSERT INTO $tableName (
                         sender_number, merchant_name, amount, currency,
                         transaction_number, transaction_type, date_time_string,
-                        date_time_millis, raw_message_body, ai_summary, is_auto_triggered
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+                        date_time_millis, raw_message_body, ai_summary, is_auto_triggered,
+                        status, verified_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    ON CONFLICT (transaction_number) DO UPDATE SET
+                        sender_number = EXCLUDED.sender_number,
+                        merchant_name = EXCLUDED.merchant_name,
+                        amount = EXCLUDED.amount,
+                        currency = EXCLUDED.currency,
+                        transaction_type = EXCLUDED.transaction_type,
+                        status = EXCLUDED.status,
+                        verified_at = EXCLUDED.verified_at;
                 """.trimIndent()
 
+                val verification = GameWebhookClient.verificationFields(transaction)
                 val jsonPayload = JSONObject().apply {
                     put("query", sqlInsert)
                     put("params", JSONArray().apply {
@@ -127,6 +137,8 @@ object RemoteDatabaseSyncManager {
                         put(transaction.rawMessageBody)
                         put(transaction.aiSummary)
                         put(transaction.isAutoTriggered)
+                        put(verification.status)
+                        if (verification.verifiedAt == null) put(JSONObject.NULL) else put(verification.verifiedAt)
                     })
                 }
                 jsonPayload.toString().toRequestBody(JSON_MEDIA_TYPE)
@@ -185,8 +197,10 @@ object RemoteDatabaseSyncManager {
                         merchant_name VARCHAR(255),
                         amount NUMERIC(12, 2),
                         currency VARCHAR(10),
-                        transaction_number VARCHAR(150),
+                        transaction_number VARCHAR(150) UNIQUE,
                         transaction_type VARCHAR(50),
+                        status VARCHAR(50) DEFAULT 'pending',
+                        verified_at TIMESTAMP WITH TIME ZONE,
                         date_time_string VARCHAR(100),
                         date_time_millis BIGINT,
                         raw_message_body TEXT,
@@ -332,6 +346,7 @@ object RemoteDatabaseSyncManager {
         transaction: TransactionEntity,
         config: RemoteDatabaseConfigEntity
     ): JSONObject {
+        val verification = GameWebhookClient.verificationFields(transaction)
         return JSONObject().apply {
             put("id", transaction.id)
             put("sender_number", transaction.senderNumber)
@@ -340,6 +355,9 @@ object RemoteDatabaseSyncManager {
             put("currency", transaction.currency)
             put("transaction_number", transaction.transactionNumber)
             put("transaction_type", transaction.transactionType)
+            put("status", verification.status)
+            if (verification.verifiedAt == null) put("verified_at", JSONObject.NULL) else put("verified_at", verification.verifiedAt)
+            put("verified", verification.verified)
             put("date_time_string", transaction.dateTimeString)
             put("date_time_millis", transaction.dateTimeMillis)
             put("raw_message_body", transaction.rawMessageBody)
