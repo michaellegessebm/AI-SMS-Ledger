@@ -101,10 +101,10 @@ fun CloudDatabaseScreen(
         mutableStateOf(config?.databaseType ?: "NEON_POSTGRES")
     }
     var databaseUrlInput by remember(config) {
-        mutableStateOf(config?.databaseUrl?.ifBlank { "postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require" } ?: "postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+        mutableStateOf(config?.databaseUrl.orEmpty())
     }
     var apiKeyInput by remember(config) {
-        mutableStateOf(config?.apiKeyOrToken?.ifBlank { "npg_Y0KnDNIxHQX8" } ?: "npg_Y0KnDNIxHQX8")
+        mutableStateOf(config?.apiKeyOrToken.orEmpty())
     }
     var pathInput by remember(config) {
         mutableStateOf(config?.tableNameOrPath ?: "transactions")
@@ -152,8 +152,8 @@ fun CloudDatabaseScreen(
         when (type) {
             "NEON_POSTGRES" -> {
                 if (databaseUrlInput.isBlank() || databaseUrlInput.contains("firebase")) {
-                    databaseUrlInput = "postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-                    apiKeyInput = "npg_Y0KnDNIxHQX8"
+                    databaseUrlInput = ""
+                    apiKeyInput = ""
                 }
             }
             "FIREBASE" -> {

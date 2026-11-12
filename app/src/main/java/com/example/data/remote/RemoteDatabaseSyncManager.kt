@@ -38,7 +38,7 @@ object RemoteDatabaseSyncManager {
 
     /**
      * Parses a PostgreSQL / Neon connection string:
-     * postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+     * postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
      */
     fun parsePostgresUri(rawUri: String): ParsedPostgresConfig? {
         val trimmed = rawUri.trim()

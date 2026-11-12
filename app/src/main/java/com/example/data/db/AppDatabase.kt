@@ -85,10 +85,10 @@ abstract class AppDatabase : RoomDatabase() {
             val defaultConfig = RemoteDatabaseConfigEntity(
                 id = 1,
                 databaseType = "NEON_POSTGRES",
-                databaseUrl = "postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-                apiKeyOrToken = "npg_Y0KnDNIxHQX8",
+                databaseUrl = "",
+                apiKeyOrToken = "",
                 tableNameOrPath = "transactions",
-                isAutoSyncEnabled = true,
+                isAutoSyncEnabled = false,
                 lastSyncStatus = "NOT_CONFIGURED"
             )
             configDao.insertOrUpdateConfig(defaultConfig)
