@@ -105,13 +105,35 @@ object RemoteDatabaseSyncManager {
 
             val requestBody = if (isNeonPostgres) {
                 val tableName = config.tableNameOrPath.trim().ifBlank { "transactions" }
-                val sqlInsert = """
-                    INSERT INTO $tableName (
-                        sender_number, merchant_name, amount, currency,
-                        transaction_number, transaction_type, date_time_string,
-                        date_time_millis, raw_message_body, ai_summary, is_auto_triggered
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
-                """.trimIndent()
+                val transactionType = transaction.transactionType.trim().uppercase()
+                    val isIncomingCredit = listOf("CREDIT", "RECEIV", "INCOME", "DEPOSIT")
+                        .any { marker -> transactionType.contains(marker) }
+                    val ledgerStatus = if (isIncomingCredit) "PAID" else "pending"
+                    val verifiedAtSql = if (isIncomingCredit) "NOW()" else "NULL"
+                    val sqlInsert = """
+                        INSERT INTO $tableName AS ledger (
+                            sender_number, merchant_name, amount, currency,
+                            transaction_number, transaction_type, date_time_string,
+                            date_time_millis, raw_message_body, ai_summary, is_auto_triggered,
+                            status, verified_at
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, '$ledgerStatus', $verifiedAtSql)
+                        ON CONFLICT (transaction_number) DO UPDATE SET
+                            sender_number = EXCLUDED.sender_number,
+                            merchant_name = EXCLUDED.merchant_name,
+                            transaction_type = EXCLUDED.transaction_type,
+                            date_time_string = EXCLUDED.date_time_string,
+                            date_time_millis = EXCLUDED.date_time_millis,
+                            raw_message_body = EXCLUDED.raw_message_body,
+                            ai_summary = EXCLUDED.ai_summary,
+                            is_auto_triggered = EXCLUDED.is_auto_triggered,
+                            status = 'PAID',
+                            verified_at = COALESCE(ledger.verified_at, EXCLUDED.verified_at)
+                        WHERE LOWER(COALESCE(ledger.status, '')) = 'pending'
+                          AND ledger.amount = EXCLUDED.amount
+                          AND UPPER(COALESCE(ledger.currency, '')) = UPPER(EXCLUDED.currency)
+                          AND EXCLUDED.status = 'PAID'
+                        RETURNING transaction_number;
+                    """.trimIndent()
 
                 val jsonPayload = JSONObject().apply {
                     put("query", sqlInsert)
@@ -179,22 +201,27 @@ object RemoteDatabaseSyncManager {
                 val tableName = config.tableNameOrPath.trim().ifBlank { "transactions" }
                 // Create table if not exists
                 val testSql = """
-                    CREATE TABLE IF NOT EXISTS $tableName (
-                        id SERIAL PRIMARY KEY,
-                        sender_number VARCHAR(100),
-                        merchant_name VARCHAR(255),
-                        amount NUMERIC(12, 2),
-                        currency VARCHAR(10),
-                        transaction_number VARCHAR(150),
-                        transaction_type VARCHAR(50),
-                        date_time_string VARCHAR(100),
-                        date_time_millis BIGINT,
-                        raw_message_body TEXT,
-                        ai_summary TEXT,
-                        is_auto_triggered BOOLEAN DEFAULT true,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """.trimIndent()
+                        CREATE TABLE IF NOT EXISTS $tableName (
+                            id SERIAL PRIMARY KEY,
+                            sender_number VARCHAR(100),
+                            merchant_name VARCHAR(255),
+                            amount NUMERIC(12, 2) NOT NULL,
+                            currency VARCHAR(10) DEFAULT 'ETB',
+                            transaction_number VARCHAR(150) UNIQUE,
+                            transaction_type VARCHAR(50) DEFAULT 'Credit/Income',
+                            date_time_string VARCHAR(100),
+                            date_time_millis BIGINT,
+                            account_balance NUMERIC(14, 2),
+                            account_or_provider VARCHAR(100),
+                            raw_message_body TEXT,
+                            ai_summary TEXT,
+                            status VARCHAR(50) DEFAULT 'pending',
+                            verified_at TIMESTAMP WITH TIME ZONE,
+                            verification_notes TEXT,
+                            is_auto_triggered BOOLEAN DEFAULT true,
+                            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                        );
+                    """.trimIndent()
                 val jsonPayload = JSONObject().apply {
                     put("query", testSql)
                 }
