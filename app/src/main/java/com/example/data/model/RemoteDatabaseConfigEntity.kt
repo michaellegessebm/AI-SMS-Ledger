@@ -2,6 +2,7 @@ package com.example.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(tableName = "remote_database_config")
 data class RemoteDatabaseConfigEntity(
@@ -14,5 +15,11 @@ data class RemoteDatabaseConfigEntity(
     val isAutoSyncEnabled: Boolean = true,
     val lastSyncTime: Long = 0L,
     val lastSyncStatus: String = "NOT_CONFIGURED", // NOT_CONFIGURED, CONNECTED, SYNCED, ERROR
-    val lastErrorMessage: String? = null
+    val lastErrorMessage: String? = null,
+    @ColumnInfo(defaultValue = "''")
+    val gameWebhookUrl: String = "",
+    @ColumnInfo(defaultValue = "''")
+    val gameWebhookToken: String = "",
+    @ColumnInfo(defaultValue = "0")
+    val isGameWebhookEnabled: Boolean = false
 )

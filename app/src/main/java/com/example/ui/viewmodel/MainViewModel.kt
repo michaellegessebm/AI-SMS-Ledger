@@ -9,6 +9,7 @@ import com.example.data.model.RemoteDatabaseConfigEntity
 import com.example.data.model.SenderFilterEntity
 import com.example.data.model.SmsInboxItem
 import com.example.data.model.TransactionEntity
+import com.example.data.remote.GameWebhookClient
 import com.example.util.NotificationHelper
 import com.example.util.SmsInboxHelper
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +54,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _connectionTestResult = MutableStateFlow<String?>(null)
     val connectionTestResult: StateFlow<String?> = _connectionTestResult.asStateFlow()
+
+    private val _isTestingGameWebhook = MutableStateFlow(false)
+    val isTestingGameWebhook: StateFlow<Boolean> = _isTestingGameWebhook.asStateFlow()
+
+    private val _gameWebhookTestResult = MutableStateFlow<String?>(null)
+    val gameWebhookTestResult: StateFlow<String?> = _gameWebhookTestResult.asStateFlow()
 
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
@@ -171,8 +178,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         isAutoSync: Boolean
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            val config = RemoteDatabaseConfigEntity(
-                id = 1,
+            val current = repository.getRemoteConfigDirect() ?: RemoteDatabaseConfigEntity()
+            val config = current.copy(
                 databaseType = databaseType,
                 databaseUrl = databaseUrl.trim(),
                 apiKeyOrToken = apiKeyOrToken.trim(),
@@ -183,6 +190,52 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             repository.saveRemoteConfig(config)
             _statusMessage.value = "Remote database endpoint saved successfully!"
+        }
+    }
+
+    fun saveGameWebhookConfig(enabled: Boolean, url: String, token: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = repository.getRemoteConfigDirect() ?: RemoteDatabaseConfigEntity()
+            repository.saveRemoteConfig(
+                current.copy(
+                    isGameWebhookEnabled = enabled,
+                    gameWebhookUrl = url.trim(),
+                    gameWebhookToken = token.trim()
+                )
+            )
+            _statusMessage.value = "Game webhook settings saved."
+        }
+    }
+
+    fun testGameWebhook(url: String, token: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isTestingGameWebhook.value = true
+            _gameWebhookTestResult.value = null
+            val result = GameWebhookClient.testConnection(url, token)
+            _isTestingGameWebhook.value = false
+            _gameWebhookTestResult.value = if (result.isSuccess) {
+                "SUCCESS: ${result.getOrNull()}"
+            } else {
+                "FAILED: ${result.exceptionOrNull()?.message ?: "Could not reach the game"}"
+            }
+        }
+    }
+
+    fun retryPendingGameWebhooks() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isSyncingToCloud.value = true
+            try {
+                val result = repository.retryPendingGameWebhooks()
+                _statusMessage.value = if (result.isSuccess) {
+                    "Sent ${result.getOrDefault(0)} pending game webhook(s)."
+                } else {
+                    result.exceptionOrNull()?.message ?: "Could not retry game webhooks."
+                }
+            } catch (error: Exception) {
+                _statusMessage.value = error.message ?: "Could not retry game webhooks."
+            } finally {
+                _isSyncingToCloud.value = false
+            }
         }
     }
 

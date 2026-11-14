@@ -38,7 +38,6 @@ object RemoteDatabaseSyncManager {
 
     /**
      * Parses a PostgreSQL / Neon connection string:
-     * postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
      */
     fun parsePostgresUri(rawUri: String): ParsedPostgresConfig? {
         val trimmed = rawUri.trim()
@@ -297,19 +296,12 @@ object RemoteDatabaseSyncManager {
         val isNeonPostgres = config.databaseType.equals("NEON_POSTGRES", ignoreCase = true) || postgresParsed != null
         if (isNeonPostgres) {
             val connStr = postgresParsed?.fullConnectionString
-                ?: config.databaseUrl.trim().takeIf { it.startsWith("postgres", ignoreCase = true) }
-                ?: if (config.apiKeyOrToken.isNotBlank()) {
-                    try {
-                        val host = URI(formatTargetUrl(config)).host ?: ""
-                        "postgresql://neondb_owner:${config.apiKeyOrToken.trim()}@$host/neondb?sslmode=require"
-                    } catch (e: Exception) {
-                        config.databaseUrl.trim()
-                    }
-                } else {
-                    config.databaseUrl.trim()
-                }
+                    ?: config.databaseUrl.trim().takeIf { it.startsWith("postgres", ignoreCase = true) }
+                    ?: throw IllegalArgumentException(
+                        "Enter the full PostgreSQL connection URI in Cloud Settings."
+                    )
 
-            builder.header("Neon-Connection-String", connStr)
+                builder.header("Neon-Connection-String", connStr)
             return
         }
 

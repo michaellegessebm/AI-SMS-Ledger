@@ -88,24 +88,42 @@ fun CloudDatabaseScreen(
     isTestingConnection: Boolean,
     isSyncingToCloud: Boolean,
     testResult: String?,
+    isTestingGameWebhook: Boolean,
+    gameWebhookTestResult: String?,
     onSaveConfig: (type: String, url: String, apiKey: String, path: String, isAutoSync: Boolean) -> Unit,
     onTestConnection: (type: String, url: String, apiKey: String, path: String) -> Unit,
-    onSyncAll: () -> Unit
+    onSyncAll: () -> Unit,
+    onSaveGameWebhook: (enabled: Boolean, url: String, token: String) -> Unit,
+    onTestGameWebhook: (url: String, token: String) -> Unit,
+    onRetryGameWebhooks: () -> Unit
 ) {
     var selectedType by remember(config) {
         mutableStateOf(config?.databaseType ?: "NEON_POSTGRES")
     }
     var databaseUrlInput by remember(config) {
-        mutableStateOf(config?.databaseUrl?.ifBlank { "postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require" } ?: "postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+        mutableStateOf(config?.databaseUrl.orEmpty())
     }
     var apiKeyInput by remember(config) {
-        mutableStateOf(config?.apiKeyOrToken?.ifBlank { "npg_Y0KnDNIxHQX8" } ?: "npg_Y0KnDNIxHQX8")
+        mutableStateOf(config?.apiKeyOrToken.orEmpty())
     }
     var pathInput by remember(config) {
         mutableStateOf(config?.tableNameOrPath ?: "transactions")
     }
     var autoSyncEnabled by remember(config) {
         mutableStateOf(config?.isAutoSyncEnabled ?: true)
+    }
+    var gameWebhookUrlInput by remember(config) {
+        mutableStateOf(
+            config?.gameWebhookUrl?.ifBlank {
+                "https://tiktok-live-game.replit.app/api/webhooks/sms-payment"
+            } ?: "https://tiktok-live-game.replit.app/api/webhooks/sms-payment"
+        )
+    }
+    var gameWebhookTokenInput by remember(config) {
+        mutableStateOf(config?.gameWebhookToken ?: "")
+    }
+    var gameWebhookEnabled by remember(config) {
+        mutableStateOf(config?.isGameWebhookEnabled ?: false)
     }
 
     // Auto-detect PostgreSQL connection string paste
@@ -134,8 +152,8 @@ fun CloudDatabaseScreen(
         when (type) {
             "NEON_POSTGRES" -> {
                 if (databaseUrlInput.isBlank() || databaseUrlInput.contains("firebase")) {
-                    databaseUrlInput = "postgresql://neondb_owner:npg_Y0KnDNIxHQX8@ep-raspy-glitter-axdefbiq-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-                    apiKeyInput = "npg_Y0KnDNIxHQX8"
+                    databaseUrlInput = ""
+                    apiKeyInput = ""
                 }
             }
             "FIREBASE" -> {
@@ -384,7 +402,7 @@ fun CloudDatabaseScreen(
                         placeholder = {
                             Text(
                                 when (selectedType) {
-                                    "NEON_POSTGRES" -> "postgresql://user:pass@ep-xyz.us-east-2.aws.neon.tech/neondb"
+                                    "NEON_POSTGRES" -> "Paste your full PostgreSQL connection URI"
                                     "FIREBASE" -> "https://your-app-rtdb.firebaseio.com/transactions.json"
                                     "SUPABASE" -> "https://xyz.supabase.co/rest/v1/transactions"
                                     else -> "https://api.yourdomain.com/v1/transactions"
@@ -596,6 +614,157 @@ fun CloudDatabaseScreen(
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .border(1.dp, BorderOutline, RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Game payment webhook",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = DarkText
+                        )
+                    )
+                    Text(
+                        text = "This is separate from the database connection. After a verified ETB credit is saved, AI SMS Ledger sends its transaction number to the lottery game.",
+                        style = MaterialTheme.typography.bodySmall.copy(color = MediumText)
+                    )
+                    OutlinedTextField(
+                        value = gameWebhookUrlInput,
+                        onValueChange = { gameWebhookUrlInput = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("game_webhook_url_input"),
+                        label = { Text("Game webhook URL") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = DeepVioletPrimary,
+                            unfocusedBorderColor = BorderOutline
+                        )
+                    )
+                    OutlinedTextField(
+                        value = gameWebhookTokenInput,
+                        onValueChange = { gameWebhookTokenInput = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("game_webhook_token_input"),
+                        label = { Text("Shared webhook key") },
+                        placeholder = { Text("Use the key configured in the game Replit Secrets") },
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = DeepVioletPrimary,
+                            unfocusedBorderColor = BorderOutline
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Send verified payments to the game",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = DarkText
+                                )
+                            )
+                            Text(
+                                text = "Only ETB credit transactions with a reference are sent.",
+                                style = MaterialTheme.typography.bodySmall.copy(color = MediumText, fontSize = 11.sp)
+                            )
+                        }
+                        Switch(
+                            checked = gameWebhookEnabled,
+                            onCheckedChange = { gameWebhookEnabled = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = DeepVioletPrimary,
+                                uncheckedThumbColor = MutedText,
+                                uncheckedTrackColor = SurfaceLavender
+                            )
+                        )
+                    }
+                    gameWebhookTestResult?.let { result ->
+                        val isSuccess = result.startsWith("SUCCESS")
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSuccess) CreditGreenContainer else DebitRedContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = result.removePrefix("SUCCESS: ").removePrefix("FAILED: "),
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = if (isSuccess) CreditGreen else DebitRed,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { onTestGameWebhook(gameWebhookUrlInput, gameWebhookTokenInput) },
+                            enabled = !isTestingGameWebhook
+                                && gameWebhookUrlInput.isNotBlank()
+                                && gameWebhookTokenInput.isNotBlank(),
+                            modifier = Modifier.weight(1f).height(46.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderOutline)
+                        ) {
+                            if (isTestingGameWebhook) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = DeepVioletPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Test webhook", color = DeepVioletPrimary)
+                            }
+                        }
+                        Button(
+                            onClick = {
+                                onSaveGameWebhook(gameWebhookEnabled, gameWebhookUrlInput, gameWebhookTokenInput)
+                            },
+                            enabled = !gameWebhookEnabled
+                                || (gameWebhookUrlInput.isNotBlank() && gameWebhookTokenInput.isNotBlank()),
+                            modifier = Modifier.weight(1f).height(46.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = DeepVioletPrimary)
+                        ) {
+                            Text("Save webhook")
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = onRetryGameWebhooks,
+                        enabled = gameWebhookEnabled && !isSyncingToCloud,
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderOutline)
+                    ) {
+                        Text("Retry pending game events", color = DeepVioletPrimary)
                     }
                 }
             }
