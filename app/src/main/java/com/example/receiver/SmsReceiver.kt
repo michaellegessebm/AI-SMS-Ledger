@@ -140,7 +140,6 @@ class SmsReceiver : BroadcastReceiver() {
 
         val gameConfig = remoteConfigDao.getConfigDirect()
         if (savedEntity.gameWebhookStatus == "PENDING"
-            && savedEntity.remoteSyncStatus == "SYNCED"
             && gameConfig?.isGameWebhookEnabled == true
         ) {
             val delivery = GameWebhookClient.sendVerifiedPayment(savedEntity, gameConfig)
