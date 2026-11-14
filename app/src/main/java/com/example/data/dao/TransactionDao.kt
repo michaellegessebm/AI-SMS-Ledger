@@ -47,7 +47,7 @@ interface TransactionDao {
     @Query("UPDATE transactions SET remoteSyncStatus = :status, remoteSyncError = :error, remoteSyncTime = :time WHERE id = :id")
     suspend fun updateSyncStatus(id: Long, status: String, error: String?, time: Long)
 
-    @Query("SELECT * FROM transactions WHERE gameWebhookStatus IN ('PENDING', 'FAILED') AND remoteSyncStatus = 'SYNCED' ORDER BY createdAt ASC")
+    @Query("SELECT * FROM transactions WHERE gameWebhookStatus IN ('PENDING', 'FAILED') ORDER BY createdAt ASC")
     suspend fun getPendingGameWebhookTransactions(): List<TransactionEntity>
 
     @Query("UPDATE transactions SET gameWebhookStatus = :status, gameWebhookError = :error, gameWebhookTime = :time WHERE id = :id")
