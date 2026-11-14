@@ -57,25 +57,25 @@ interface TransactionDao {
     fun getTransactionCountFlow(): Flow<Int>
 
     @Query("""
-        SELECT COALESCE(SUM(amount), 0.0) FROM transactions 
-        WHERE UPPER(transactionType) IN ('CREDIT', 'RECEIVED', 'INCOME', 'DEPOSIT') 
-           OR UPPER(transactionType) LIKE '%CREDIT%' 
-           OR UPPER(transactionType) LIKE '%RECEIV%' 
-           OR UPPER(transactionType) LIKE '%INCOME%' 
+        SELECT COALESCE(SUM(amount), 0.0) FROM transactions
+        WHERE UPPER(transactionType) IN ('CREDIT', 'RECEIVED', 'INCOME', 'DEPOSIT')
+           OR UPPER(transactionType) LIKE '%CREDIT%'
+           OR UPPER(transactionType) LIKE '%RECEIV%'
+           OR UPPER(transactionType) LIKE '%INCOME%'
            OR UPPER(transactionType) LIKE '%DEPOSIT%'
     """)
     fun getTotalIncomeFlow(): Flow<Double?>
 
     @Query("""
-        SELECT COALESCE(SUM(amount), 0.0) FROM transactions 
-        WHERE UPPER(transactionType) IN ('DEBIT', 'SENT', 'PAYMENT', 'WITHDRAWAL', 'TRANSFER', 'CHARGE', 'POS CHARGE', 'PURCHASE') 
-           OR UPPER(transactionType) LIKE '%DEBIT%' 
-           OR UPPER(transactionType) LIKE '%SENT%' 
-           OR UPPER(transactionType) LIKE '%PAY%' 
-           OR UPPER(transactionType) LIKE '%WITHDRAW%' 
-           OR UPPER(transactionType) LIKE '%TRANSFER%' 
-           OR UPPER(transactionType) LIKE '%POS%' 
-           OR UPPER(transactionType) LIKE '%CHARGE%' 
+        SELECT COALESCE(SUM(amount), 0.0) FROM transactions
+        WHERE UPPER(transactionType) IN ('DEBIT', 'SENT', 'PAYMENT', 'WITHDRAWAL', 'TRANSFER', 'CHARGE', 'POS CHARGE', 'PURCHASE')
+           OR UPPER(transactionType) LIKE '%DEBIT%'
+           OR UPPER(transactionType) LIKE '%SENT%'
+           OR UPPER(transactionType) LIKE '%PAY%'
+           OR UPPER(transactionType) LIKE '%WITHDRAW%'
+           OR UPPER(transactionType) LIKE '%TRANSFER%'
+           OR UPPER(transactionType) LIKE '%POS%'
+           OR UPPER(transactionType) LIKE '%CHARGE%'
            OR UPPER(transactionType) LIKE '%PURCHASE%'
     """)
     fun getTotalExpenseFlow(): Flow<Double?>
