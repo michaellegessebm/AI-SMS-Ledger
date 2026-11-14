@@ -296,19 +296,12 @@ object RemoteDatabaseSyncManager {
         val isNeonPostgres = config.databaseType.equals("NEON_POSTGRES", ignoreCase = true) || postgresParsed != null
         if (isNeonPostgres) {
             val connStr = postgresParsed?.fullConnectionString
-                ?: config.databaseUrl.trim().takeIf { it.startsWith("postgres", ignoreCase = true) }
-                ?: if (config.apiKeyOrToken.isNotBlank()) {
-                    try {
-                        val host = URI(formatTargetUrl(config)).host ?: ""
-                        "postgresql://<your-user>:<your-password>@<your-host>/<your-database>"
-                    } catch (e: Exception) {
-                        config.databaseUrl.trim()
-                    }
-                } else {
-                    config.databaseUrl.trim()
-                }
+                    ?: config.databaseUrl.trim().takeIf { it.startsWith("postgres", ignoreCase = true) }
+                    ?: throw IllegalArgumentException(
+                        "Enter the full PostgreSQL connection URI in Cloud Settings."
+                    )
 
-            builder.header("Neon-Connection-String", connStr)
+                builder.header("Neon-Connection-String", connStr)
             return
         }
 
