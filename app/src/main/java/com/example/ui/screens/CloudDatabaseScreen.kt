@@ -402,7 +402,7 @@ fun CloudDatabaseScreen(
                         placeholder = {
                             Text(
                                 when (selectedType) {
-                                    "NEON_POSTGRES" -> "postgresql://user:pass@ep-xyz.us-east-2.aws.neon.tech/neondb"
+                                    "NEON_POSTGRES" -> "Paste your full PostgreSQL connection URI"
                                     "FIREBASE" -> "https://your-app-rtdb.firebaseio.com/transactions.json"
                                     "SUPABASE" -> "https://xyz.supabase.co/rest/v1/transactions"
                                     else -> "https://api.yourdomain.com/v1/transactions"
